@@ -7,6 +7,7 @@ export const signUp = async (email, password, firstName, lastName) => {
     password,
     options: {
       data: {
+        first_name: firstName,
         last_name: lastName
       }
     }
