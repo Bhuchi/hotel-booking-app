@@ -2,24 +2,26 @@ import { supabase } from './supabaseClient';
 
 // User Authentication
 export const signUp = async (email, password, firstName, lastName) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        first_name: firstName,
-        last_name: lastName
-      }
-    }
-  });
-  return { data, error };
+  const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+  if (signUpError) return { data: null, error: signUpError };
+
+  // data.user can be null if email confirmation is required
+  if (data.user) {
+    // Use upsert in case a backend trigger already inserted the row
+    await supabase.from('users').upsert({
+      id: data.user.id,
+      first_name: firstName,
+      last_name: lastName,
+      email,
+    }, { onConflict: 'id' });
+    // Non-fatal: if this fails, auth still works and user can log in
+  }
+
+  return { data, error: null };
 };
 
 export const login = async (email, password) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   return { data, error };
 };
 
@@ -40,43 +42,39 @@ export const updateProfile = async (userId, firstName, lastName) => {
   return data;
 };
 
-//Fetch available rooms based on checkin and checkout dates
-export const getAvailableRooms = async (startDate, endDate) => {
+// Fetch all active rooms, optionally filtered by room type
+export const getRooms = async (roomType) => {
+  let query = supabase.from('rooms').select('*').eq('is_active', true);
+  if (roomType && roomType !== 'All') query = query.eq('type', roomType);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+};
 
-  const { data: overlaps, error: overlapError } = await supabase
+// Fetch room IDs that are booked (confirmed) within the given date range
+export const getBookedRoomIds = async (startDate, endDate) => {
+  const { data, error } = await supabase
     .from('bookings')
     .select('room_id')
     .eq('status', 'confirmed')
     .lt('check_in_date', endDate)
     .gt('check_out_date', startDate);
 
-  if (overlapError) throw overlapError;
-
-  const bookedRoomIds = overlaps.map(b => b.room_id);
-
-  const { data: rooms, error: roomError } = await supabase
-    .from('rooms')
-    .select('*')
-    .eq('is_active', true)
-    .not('id', 'in', `(${bookedRoomIds.length > 0 ? bookedRoomIds.join(',') : '00000000-0000-0000-0000-000000000000'})`);
-
-  if (roomError) throw roomError;
-  return rooms;
+  if (error) throw error;
+  return new Set((data || []).map(b => b.room_id));
 };
 
 // Create a new booking
 export const createBooking = async (userId, roomId, checkInDate, checkOutDate) => {
   const { data, error } = await supabase
     .from('bookings')
-    .insert([
-      { user_id: userId,
-        room_id: roomId,
-        check_in_date: checkInDate,
-        check_out_date: checkOutDate,
-        status: 'confirmed',
-        created_at: new Date().toISOString()
-      }
-    ])
+    .insert([{
+      user_id: userId,
+      room_id: roomId,
+      check_in_date: checkInDate,
+      check_out_date: checkOutDate,
+      status: 'confirmed',
+    }])
     .select();
   return { data, error };
 };
@@ -85,14 +83,7 @@ export const createBooking = async (userId, roomId, checkInDate, checkOutDate) =
 export const getUserBookings = async (userId) => {
   const { data, error } = await supabase
     .from('bookings')
-    .select(`
-      *,
-      rooms (
-        room_number,
-        type,
-        price_per_night
-      )
-    `)
+    .select('*, rooms(*)')
     .eq('user_id', userId)
     .order('check_in_date', { ascending: true });
 
@@ -104,10 +95,7 @@ export const getUserBookings = async (userId) => {
 export const cancelBooking = async (bookingId) => {
   const { data, error } = await supabase
     .from('bookings')
-    .update({ 
-      status: 'cancelled', 
-      cancelled_at: new Date().toISOString() 
-    })
+    .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
     .eq('id', bookingId)
     .select();
 

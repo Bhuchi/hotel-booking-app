@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { getUserBookings, cancelBooking } from '../lib/services'
 import Navbar from '../components/Navbar'
 
 export default function MyBookingsPage({ user }) {
@@ -14,30 +14,24 @@ export default function MyBookingsPage({ user }) {
 
   async function fetchBookings() {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*, rooms(*)')
-      .eq('user_id', user.id)
-      .order('check_in_date', { ascending: true })
-
-    if (error) setError(error.message)
-    else setBookings(data)
+    try {
+      const data = await getUserBookings(user.id)
+      setBookings(data)
+    } catch (err) {
+      setError(err.message)
+    }
     setLoading(false)
   }
 
   async function handleCancel(bookingId) {
     setCancellingId(bookingId)
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-      .eq('id', bookingId)
-
-    if (error) {
-      setError(error.message)
-    } else {
+    try {
+      await cancelBooking(bookingId)
       setBookings(prev =>
         prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b)
       )
+    } catch (err) {
+      setError(err.message)
     }
     setCancellingId(null)
   }
@@ -58,27 +52,31 @@ export default function MyBookingsPage({ user }) {
           <>
             {/* Confirmed */}
             <section style={styles.section}>
-              <p className="label">Confirmed ({confirmed.length})</p>
+              <p className="label" style={{ marginBottom: 16 }}>Confirmed ({confirmed.length})</p>
               {confirmed.length === 0 && (
                 <p style={styles.hint}>No upcoming bookings.</p>
               )}
-              {confirmed.map(b => (
-                <BookingCard
-                  key={b.id}
-                  booking={b}
-                  onCancel={handleCancel}
-                  cancelling={cancellingId === b.id}
-                />
-              ))}
+              <div className="booking-grid">
+                {confirmed.map(b => (
+                  <BookingCard
+                    key={b.id}
+                    booking={b}
+                    onCancel={handleCancel}
+                    cancelling={cancellingId === b.id}
+                  />
+                ))}
+              </div>
             </section>
 
             {/* Cancelled */}
             {cancelled.length > 0 && (
               <section style={styles.section}>
                 <div className="divider">Cancelled</div>
-                {cancelled.map(b => (
-                  <BookingCard key={b.id} booking={b} cancelled />
-                ))}
+                <div className="booking-grid">
+                  {cancelled.map(b => (
+                    <BookingCard key={b.id} booking={b} cancelled />
+                  ))}
+                </div>
               </section>
             )}
           </>
@@ -92,6 +90,10 @@ export default function MyBookingsPage({ user }) {
 function BookingCard({ booking, onCancel, cancelling, cancelled }) {
   const { rooms: room, check_in_date, check_out_date } = booking
 
+  // Support different possible column names from the database
+  const roomName = room?.name ?? room?.room_name ?? room?.title ?? 'Room'
+  const roomType = room?.room_type ?? room?.type ?? ''
+
   const nights = Math.round(
     (new Date(check_out_date) - new Date(check_in_date)) / 86400000
   )
@@ -102,9 +104,9 @@ function BookingCard({ booking, onCancel, cancelling, cancelled }) {
     <div className="card" style={{ ...styles.bookingCard, opacity: cancelled ? 0.5 : 1 }}>
       <div style={styles.bookingTop}>
         <div>
-          <h3 style={styles.roomName}>{room?.name ?? 'Room'}</h3>
+          <h3 style={styles.roomName}>{roomName}</h3>
           <span className="badge badge-accent" style={{ marginTop: 4 }}>
-            {room?.room_type}
+            {roomType}
           </span>
         </div>
         {cancelled
@@ -156,7 +158,7 @@ function formatDate(dateStr) {
 const styles = {
   heading: {
     fontFamily: 'Bebas Neue, sans-serif',
-    fontSize: 36,
+    fontSize: 40,
     marginBottom: 20,
   },
   section: {
