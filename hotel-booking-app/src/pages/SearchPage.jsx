@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { getRooms, getBookedRoomIds, createBooking } from '../lib/services'
 import RoomCard from '../components/RoomCard'
 import Navbar from '../components/Navbar'
 
-const ROOM_TYPES = ['All', 'Single', 'Double', 'Suite', 'Deluxe']
+const ROOM_TYPES = [
+  { label: 'All',    value: 'All' },
+  { label: 'Single', value: 'single' },
+  { label: 'Double', value: 'double' },
+  { label: 'Suite',  value: 'suite' },
+  { label: 'Deluxe', value: 'deluxe' },
+]
 
 export default function SearchPage({ user }) {
   const today = new Date().toISOString().split('T')[0]
@@ -16,7 +22,7 @@ export default function SearchPage({ user }) {
   const [unavailableIds, setUnavailableIds] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [bookingId, setBookingId] = useState(null) // room id currently being booked
+  const [bookingId, setBookingId] = useState(null)
   const [successMsg, setSuccessMsg] = useState('')
 
   useEffect(() => {
@@ -27,22 +33,17 @@ export default function SearchPage({ user }) {
     setLoading(true)
     setError('')
 
-    let query = supabase.from('rooms').select('*').eq('is_active', true)
-    if (roomType !== 'All') query = query.eq('room_type', roomType)
+    try {
+      const [roomsData, bookedIds] = await Promise.all([
+        getRooms(roomType),
+        getBookedRoomIds(checkIn, checkOut),
+      ])
+      setRooms(roomsData)
+      setUnavailableIds(bookedIds)
+    } catch (err) {
+      setError(err.message)
+    }
 
-    const { data, error } = await query
-    if (error) { setError(error.message); setLoading(false); return }
-    setRooms(data)
-
-    // Fetch unavailable room IDs for the selected dates
-    const { data: booked } = await supabase
-      .from('bookings')
-      .select('room_id')
-      .eq('status', 'confirmed')
-      .lt('check_in_date', checkOut)
-      .gt('check_out_date', checkIn)
-
-    setUnavailableIds(new Set((booked || []).map(b => b.room_id)))
     setLoading(false)
   }
 
@@ -51,19 +52,12 @@ export default function SearchPage({ user }) {
     setError('')
     setSuccessMsg('')
 
-    const { error } = await supabase.from('bookings').insert({
-      user_id: user.id,
-      room_id: room.id,
-      check_in_date: checkIn,
-      check_out_date: checkOut,
-      status: 'confirmed',
-    })
+    const { error } = await createBooking(user.id, room.id, checkIn, checkOut)
 
     if (error) {
       setError(error.message)
     } else {
       setSuccessMsg(`${room.name} booked from ${checkIn} to ${checkOut}!`)
-      // Mark room as unavailable immediately
       setUnavailableIds(prev => new Set([...prev, room.id]))
     }
     setBookingId(null)
@@ -81,53 +75,60 @@ export default function SearchPage({ user }) {
         <h1 style={styles.heading}>Find a Room</h1>
 
         <form onSubmit={handleSearch} style={styles.form} className="card">
-          <div style={styles.dateRow}>
-            <div style={{ flex: 1 }}>
-              <label className="label">Check-in</label>
-              <input
-                className="input"
-                type="date"
-                value={checkIn}
-                min={today}
-                onChange={e => setCheckIn(e.target.value)}
-              />
+          <div style={styles.filterRow}>
+            <div style={styles.dateGroup}>
+              <div>
+                <label className="label">Check-in</label>
+                <input
+                  className="input"
+                  type="date"
+                  value={checkIn}
+                  min={today}
+                  onChange={e => setCheckIn(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Check-out</label>
+                <input
+                  className="input"
+                  type="date"
+                  value={checkOut}
+                  min={checkIn}
+                  onChange={e => setCheckOut(e.target.value)}
+                />
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <label className="label">Check-out</label>
-              <input
-                className="input"
-                type="date"
-                value={checkOut}
-                min={checkIn}
-                onChange={e => setCheckOut(e.target.value)}
-              />
+
+            <div style={styles.typeGroup}>
+              <label className="label">Room Type</label>
+              <div style={styles.typeRow}>
+                {ROOM_TYPES.map(({ label, value }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`btn ${roomType === value ? 'btn-primary' : 'btn-ghost'}`}
+                    style={styles.typeBtn}
+                    onClick={() => setRoomType(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.searchBtnWrap}>
+              <label className="label" style={{ visibility: 'hidden' }}>Search</label>
+              <button className="btn btn-primary" type="submit" style={{ whiteSpace: 'nowrap' }}>
+                Search
+              </button>
             </div>
           </div>
-
-          <div>
-            <label className="label">Room Type</label>
-            <div style={styles.typeRow}>
-              {ROOM_TYPES.map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  className={`btn ${roomType === type ? 'btn-primary' : 'btn-ghost'}`}
-                  style={styles.typeBtn}
-                  onClick={() => setRoomType(type)}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button className="btn btn-primary" type="submit">Search</button>
         </form>
 
         {error && <p className="error-msg" style={{ marginTop: 16 }}>{error}</p>}
         {successMsg && <p style={styles.successMsg}>{successMsg}</p>}
 
-        <div style={styles.list}>
+        <div className="room-grid" style={{ marginTop: 24 }}>
           {loading && <p style={styles.hint}>Loading rooms…</p>}
           {!loading && rooms.length === 0 && (
             <p style={styles.hint}>No rooms found. Try different dates or type.</p>
@@ -151,18 +152,26 @@ export default function SearchPage({ user }) {
 const styles = {
   heading: {
     fontFamily: 'Bebas Neue, sans-serif',
-    fontSize: 36,
-    marginBottom: 16,
+    fontSize: 40,
+    marginBottom: 20,
   },
   form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 14,
     marginBottom: 8,
   },
-  dateRow: {
+  filterRow: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: 20,
+    flexWrap: 'wrap',
+  },
+  dateGroup: {
     display: 'flex',
     gap: 12,
+    flex: '0 0 auto',
+  },
+  typeGroup: {
+    flex: 1,
+    minWidth: 200,
   },
   typeRow: {
     display: 'flex',
@@ -171,20 +180,18 @@ const styles = {
   },
   typeBtn: {
     width: 'auto',
-    padding: '8px 14px',
+    padding: '8px 16px',
     fontSize: 13,
   },
-  list: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-    marginTop: 20,
+  searchBtnWrap: {
+    flex: '0 0 auto',
   },
   hint: {
     color: 'var(--text-muted)',
     fontSize: 14,
     textAlign: 'center',
-    padding: '32px 0',
+    padding: '48px 0',
+    gridColumn: '1 / -1',
   },
   successMsg: {
     background: 'rgba(0, 230, 118, 0.12)',

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
+import { signUp } from '../lib/services'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -17,27 +17,10 @@ export default function SignupPage() {
     setError('')
     setLoading(true)
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-    })
+    const { error } = await signUp(form.email, form.password, form.firstName, form.lastName)
 
-    if (signUpError) {
-      setError(signUpError.message)
-      setLoading(false)
-      return
-    }
-
-    // Insert into users table after auth signup
-    const { error: insertError } = await supabase.from('users').insert({
-      id: data.user.id,
-      first_name: form.firstName,
-      last_name: form.lastName,
-      email: form.email,
-    })
-
-    if (insertError) {
-      setError(insertError.message)
+    if (error) {
+      setError(error.message)
       setLoading(false)
       return
     }
@@ -129,7 +112,9 @@ const styles = {
     flexDirection: 'column',
     justifyContent: 'center',
     minHeight: '100dvh',
-    paddingBottom: 24,
+    maxWidth: 480,
+    margin: '0 auto',
+    padding: '24px 20px',
   },
   header: {
     textAlign: 'center',

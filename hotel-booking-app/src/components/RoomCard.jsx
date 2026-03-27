@@ -1,5 +1,5 @@
 export default function RoomCard({ room, available, onBook, booking }) {
-  const { name, room_type, price_per_night, description, image_url } = room
+  const { name, type, room_type, price_per_night, description, image_url } = room
 
   return (
     <div className="card" style={styles.card}>
@@ -9,7 +9,7 @@ export default function RoomCard({ room, available, onBook, booking }) {
 
       <div style={styles.body}>
         <div style={styles.topRow}>
-          <span className="badge badge-accent">{room_type}</span>
+          <span className="badge badge-accent">{type ?? room_type}</span>
           {available
             ? <span className="badge badge-success">Available</span>
             : <span className="badge badge-muted">Unavailable</span>

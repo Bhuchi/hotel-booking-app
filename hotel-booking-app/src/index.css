@@ -15,6 +15,7 @@
   --radius-input: 10px;
 
   --nav-height: 64px;
+  --max-width: 1200px;
 }
 
 /* ── Reset ─────────────────────────────────────────────── */
@@ -38,9 +39,9 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Layout ────────────────────────────────────────────── */
 .page {
-  max-width: 480px;
+  max-width: var(--max-width);
   margin: 0 auto;
-  padding: 24px 20px calc(var(--nav-height) + 24px);
+  padding: calc(var(--nav-height) + 32px) 40px 48px;
   min-height: 100%;
 }
 
@@ -67,6 +68,7 @@ a { color: inherit; text-decoration: none; }
 }
 .input:focus { border-color: var(--accent); }
 .input::placeholder { color: var(--text-muted); }
+.input::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
 
 /* ── Buttons ───────────────────────────────────────────── */
 .btn {
@@ -158,4 +160,18 @@ a { color: inherit; text-decoration: none; }
   color: var(--danger);
   font-size: 14px;
   padding: 10px 14px;
+}
+
+/* ── Room grid (desktop) ───────────────────────────────── */
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* ── Booking grid (desktop) ────────────────────────────── */
+.booking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
 }
