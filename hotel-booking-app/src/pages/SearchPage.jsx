@@ -11,6 +11,8 @@ const ROOM_TYPES = [
   { label: 'Deluxe', value: 'deluxe' },
 ]
 
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
 export default function SearchPage({ user }) {
   const today = new Date().toISOString().split('T')[0]
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
@@ -57,7 +59,7 @@ export default function SearchPage({ user }) {
     if (error) {
       setError(error.message)
     } else {
-      setSuccessMsg(`${room.name} booked from ${checkIn} to ${checkOut}!`)
+      setSuccessMsg(`${capitalize(room.type)} room booked from ${checkIn} to ${checkOut}!`)
       setUnavailableIds(prev => new Set([...prev, room.id]))
     }
     setBookingId(null)
