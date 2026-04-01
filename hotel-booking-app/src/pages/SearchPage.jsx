@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getRooms, getBookedRoomIds, createBooking } from '../lib/services'
 import RoomCard from '../components/RoomCard'
+import RoomDetailModal from '../components/RoomDetailModal'
 import Navbar from '../components/Navbar'
 
 const ROOM_TYPES = [
@@ -24,6 +25,7 @@ export default function SearchPage({ user }) {
   const [error, setError] = useState('')
   const [bookingId, setBookingId] = useState(null)
   const [successMsg, setSuccessMsg] = useState('')
+  const [inspectRoom, setInspectRoom] = useState(null)
 
   useEffect(() => {
     fetchRooms()
@@ -140,11 +142,22 @@ export default function SearchPage({ user }) {
               available={!unavailableIds.has(room.id)}
               onBook={handleBook}
               booking={bookingId === room.id}
+              onInspect={setInspectRoom}
             />
           ))}
         </div>
       </div>
       <Navbar />
+
+      {inspectRoom && (
+        <RoomDetailModal
+          room={inspectRoom}
+          available={!unavailableIds.has(inspectRoom.id)}
+          onBook={handleBook}
+          booking={bookingId === inspectRoom.id}
+          onClose={() => setInspectRoom(null)}
+        />
+      )}
     </>
   )
 }

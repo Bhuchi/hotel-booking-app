@@ -1,11 +1,33 @@
-export default function RoomCard({ room, available, onBook, booking }) {
+import { useState } from 'react'
+
+export default function RoomCard({ room, available, onBook, booking, onInspect }) {
   const { name, type, room_type, price_per_night, description, image_url } = room
+  const [hovered, setHovered] = useState(false)
 
   return (
     <div className="card" style={styles.card}>
-      {image_url && (
-        <img src={image_url} alt={name} style={styles.image} />
-      )}
+      {/* Image — clickable to inspect */}
+      <div
+        style={styles.imageWrap}
+        onClick={() => onInspect(room)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {image_url ? (
+          <img
+            src={image_url}
+            alt={name}
+            style={{ ...styles.image, transform: hovered ? 'scale(1.05)' : 'scale(1)' }}
+          />
+        ) : (
+          <div style={styles.imagePlaceholder}>
+            <span style={styles.placeholderIcon}>🛏</span>
+          </div>
+        )}
+        <div style={{ ...styles.imageOverlay, background: hovered ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0)' }}>
+          <span style={{ ...styles.inspectLabel, opacity: hovered ? 1 : 0 }}>View Details</span>
+        </div>
+      </div>
 
       <div style={styles.body}>
         <div style={styles.topRow}>
@@ -47,11 +69,52 @@ const styles = {
     padding: 0,
     overflow: 'hidden',
   },
+  imageWrap: {
+    position: 'relative',
+    cursor: 'pointer',
+    overflow: 'hidden',
+  },
   image: {
     width: '100%',
     height: 180,
     objectFit: 'cover',
     display: 'block',
+    transition: 'transform 0.25s',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: 180,
+    background: 'var(--border)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderIcon: {
+    fontSize: 48,
+    opacity: 0.35,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(0,0,0,0)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.2s',
+    // hover handled via CSS class below — we use onMouseEnter/Leave instead
+  },
+  inspectLabel: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 500,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    background: 'rgba(0,0,0,0.55)',
+    padding: '6px 14px',
+    borderRadius: 8,
+    opacity: 0,
+    transition: 'opacity 0.2s',
+    pointerEvents: 'none',
   },
   body: {
     padding: 16,
