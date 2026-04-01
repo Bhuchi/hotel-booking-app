@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
+import { getRoomImageUrl } from '../lib/supabaseClient'
 
 export default function RoomDetailModal({ room, available, onBook, booking, onClose }) {
   const { name, type, room_type, price_per_night, description, image_url, capacity, amenities, room_number, floor, max_guests } = room
+  const displayImage = image_url || getRoomImageUrl(type ?? room_type)
 
   // Close on Escape key
   useEffect(() => {
@@ -17,8 +19,8 @@ export default function RoomDetailModal({ room, available, onBook, booking, onCl
       <div style={styles.modal} onClick={e => e.stopPropagation()}>
 
         {/* Image */}
-        {image_url ? (
-          <img src={image_url} alt={name} style={styles.image} />
+        {displayImage ? (
+          <img src={displayImage} alt={name} style={styles.image} />
         ) : (
           <div style={styles.imagePlaceholder}>
             <span style={styles.placeholderIcon}>🛏</span>
