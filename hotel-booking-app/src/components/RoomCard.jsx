@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { getRoomImageUrl } from '../lib/supabaseClient'
 
 export default function RoomCard({ room, available, onBook, booking, onInspect }) {
   const { name, type, room_type, price_per_night, description, image_url } = room
   const [hovered, setHovered] = useState(false)
-  const displayImage = image_url || getRoomImageUrl(type ?? room_type)
 
   return (
     <div className="card" style={styles.card}>
@@ -15,9 +13,9 @@ export default function RoomCard({ room, available, onBook, booking, onInspect }
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {displayImage ? (
+        {image_url ? (
           <img
-            src={displayImage}
+            src={image_url}
             alt={name}
             style={{ ...styles.image, transform: hovered ? 'scale(1.05)' : 'scale(1)' }}
           />

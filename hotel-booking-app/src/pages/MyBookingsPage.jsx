@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import { getUserBookings, cancelBooking } from '../lib/services'
 import Navbar from '../components/Navbar'
-import RoomDetailModal from '../components/RoomDetailModal'
 
 export default function MyBookingsPage({ user }) {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cancellingId, setCancellingId] = useState(null)
-  const [inspectedRoom, setInspectedRoom] = useState(null)
 
   useEffect(() => {
     fetchBookings()
@@ -43,15 +41,6 @@ export default function MyBookingsPage({ user }) {
 
   return (
     <>
-      {inspectedRoom && (
-        <RoomDetailModal
-          room={inspectedRoom}
-          available={false}
-          onBook={() => {}}
-          booking={false}
-          onClose={() => setInspectedRoom(null)}
-        />
-      )}
       <div className="page">
         <h1 style={styles.heading}>My Bookings</h1>
 
@@ -74,7 +63,6 @@ export default function MyBookingsPage({ user }) {
                     booking={b}
                     onCancel={handleCancel}
                     cancelling={cancellingId === b.id}
-                    onInspect={setInspectedRoom}
                   />
                 ))}
               </div>
@@ -86,7 +74,7 @@ export default function MyBookingsPage({ user }) {
                 <div className="divider">Cancelled</div>
                 <div className="booking-grid">
                   {cancelled.map(b => (
-                    <BookingCard key={b.id} booking={b} cancelled onInspect={setInspectedRoom} />
+                    <BookingCard key={b.id} booking={b} cancelled />
                   ))}
                 </div>
               </section>
@@ -99,7 +87,7 @@ export default function MyBookingsPage({ user }) {
   )
 }
 
-function BookingCard({ booking, onCancel, cancelling, cancelled, onInspect }) {
+function BookingCard({ booking, onCancel, cancelling, cancelled }) {
   const { rooms: room, check_in_date, check_out_date } = booking
 
   // Support different possible column names from the database
@@ -113,7 +101,7 @@ function BookingCard({ booking, onCancel, cancelling, cancelled, onInspect }) {
   const isPast = new Date(check_out_date) < new Date()
 
   return (
-    <div className="card" style={{ ...styles.bookingCard, opacity: cancelled ? 0.5 : 1, cursor: 'pointer' }} onClick={() => onInspect(room)}>
+    <div className="card" style={{ ...styles.bookingCard, opacity: cancelled ? 0.5 : 1 }}>
       <div style={styles.bookingTop}>
         <div>
           <h3 style={styles.roomName}>{roomName}</h3>
@@ -150,7 +138,7 @@ function BookingCard({ booking, onCancel, cancelling, cancelled, onInspect }) {
           <button
             className="btn btn-danger"
             style={styles.cancelBtn}
-            onClick={e => { e.stopPropagation(); onCancel(booking.id) }}
+            onClick={() => onCancel(booking.id)}
             disabled={cancelling}
           >
             {cancelling ? 'Cancelling…' : 'Cancel'}
